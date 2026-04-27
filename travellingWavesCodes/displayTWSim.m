@@ -2,13 +2,16 @@ clear;
 %% Load Meta Data
 subjectName = '013AR';
 date = '280122';
-protocol = 'G1';
+protocol = 'M2';
 folderSource = 'E:\NeoLabData\projectDhyaan\segmentedData';
 
 segmentedDataFolder = fullfile(folderSource,subjectName,'EEG',date,protocol,'segmentedData','LFP');
 lfpInfo = load(fullfile(segmentedDataFolder, 'lfpInfo.mat'));
 timeVals = lfpInfo.timeVals;
-load('E:\OneDrive - Indian Institute of Science\Coursework\Neural Signal Processing\Assignments\Assignment2\actiCap64_UOL.mat')
+
+badTrialsStruct = load(fullfile(segmentedDataFolder,'..','badTrials_wo_v8'));
+badTrials = badTrialsStruct.badTrials;
+badElecs = badTrialsStruct.badElecs.noisyElecs;
 
 montageFolder = 'E:\OneDrive - Indian Institute of Science\NeoLabData\Programs\Montages\Layouts\actiCap64_UOL';
 labelFilePath = fullfile(montageFolder,'actiCap64_UOLLabels.mat');
@@ -26,41 +29,68 @@ for i=1:numElectrodes
     data(:,i,:) = load(fullfile(segmentedDataFolder,['elec' num2str(i) '.mat'])).analogData;
 end
 
+% Only select the Good EEG electrodes and good trials
+goodElecs = 1:64;%setdiff(1:64,badElecs);
+goodTrials = setdiff(1:numTrials,badTrials);
+data = data(:,1:64,:);  % 64 EEG electrodes
+data = data(goodTrials,goodElecs,:);
+
 %% Select Electrodes to analyse
-occipitalElectrodeLabels = {"O1","Oz","O2"};
-parietoOccipitalElectrodeLabels = {"PO7","PO3","POz","PO4","PO8"};
-parietalElectrodeLabels = {"P7","P5","P3","P1","Pz","P2","P4","P6","P8"};
-centroParietalElectrodeLabels = {"CP5","CP3","CP1","CPz","CP2","CP4","CP6"};
-centralElectrodeLabels = {"C5","C3","C1","Cz","C2","C4","C6"};
-frontoCentralElectrodeLabels = {"FC5","FC3","FC1","FC2","FC4","FC6"};
-electrodesToAnalyseLabels = [occipitalElectrodeLabels,...
- parietoOccipitalElectrodeLabels,...
-  parietalElectrodeLabels,...
-   ...centroParietalElectrodeLabels,...
-    ...centralElectrodeLabels,...
-    ...frontoCentralElectrodeLabels...
-    ];
-labels = montageLabels(:,2);
-electrodesToAnalyse = zeros(1,length(electrodesToAnalyseLabels));
-for i=1:length(electrodesToAnalyse)
-    electrodesToAnalyse(i) = find(labels==electrodesToAnalyseLabels{i});
-end
+% occipitalElectrodeLabels = {"O1","Oz","O2"};
+% parietoOccipitalElectrodeLabels = {"PO7","PO3","POz","PO4","PO8"};
+% parietalElectrodeLabels = {"P7","P5","P3","P1","Pz","P2","P4","P6","P8"};
+% centroParietalElectrodeLabels = {"CP5","CP3","CP1","CPz","CP2","CP4","CP6"};
+% centralElectrodeLabels = {"C5","C3","C1","Cz","C2","C4","C6"};
+% frontoCentralElectrodeLabels = {"FC5","FC3","FC1","FC2","FC4","FC6"};
+% electrodesToAnalyseLabels = [occipitalElectrodeLabels,...
+%  parietoOccipitalElectrodeLabels,...
+%   parietalElectrodeLabels,...
+%    ...centroParietalElectrodeLabels,...
+%     ...centralElectrodeLabels,...
+%     ...frontoCentralElectrodeLabels...
+%     ];
+% labels = montageLabels(:,2);
+% electrodesToAnalyse = zeros(1,length(electrodesToAnalyseLabels));
+% for i=1:length(electrodesToAnalyse)
+%     electrodesToAnalyse(i) = find(labels==electrodesToAnalyseLabels{i});
+% end
 
 % electrodesToAnalyse = 1:64; % Uncomment to use the whole electrode grid
-[outputs] = getTWCircParams(squeeze(data(1,1:64,:)),timeVals,electrodesToAnalyse,[40 60],1,[]);
+% Find clusters of electrodes
+X = projectTo2DPlane(chanlocs);
+% X = [chanlocs.Y; chanlocs.X; chanlocs.Z]';
+% [clusters, clusterPeakFreqs] = getClusters(data,timeVals,X,[0 80]);
+clusters{1} = 1:64;
+% numClusters = length(clusters);
+% outputs = cell(1,numClusters);
+% for clusterIndex=1:numClusters
+%     BWFactor = 0.85;
+    % freqRange = [BWFactor 1/BWFactor]*clusterPeakFreqs{clusterIndex};
+    freqRange = [40 60];
+    % outputs{clusterIndex} = getTWCircParams(squeeze(data(1,:,:)),timeVals,...
+    %     clusters{clusterIndex},freqRange,1,[]);
+% end
+outputs = getTWCircParams(squeeze(data(1,:,:)),timeVals,...
+        clusters{1},freqRange,1,[],chanlocs);
 
 %% Plot Simulation
 % Coarse simulation
-% simulationPeriod = [0.5 0.75];
-% simulationSpeed = 0.01;
+simulationPeriod = [0.5 0.75];
+simulationSpeed = 0.01;
 
 % Fine Simulation
-simulationPeriod = [0.716 0.724];
-simulationSpeed = 1;
+% simulationPeriod = [0.92 0.931];
+% simulationSpeed = 1;
 
 % Single Frame snapshot
 % timePoint = 0.718;
 % simulationPeriod = [timePoint timePoint];
 % simulationSpeed = 1; % Placeholder
-
-runSimulation(outputs,chanlocs,electrodesToAnalyse,timeVals,simulationPeriod,simulationSpeed,0);    % Comment to just get the outputs
+clusterIndex = 1;
+runSimulation(outputs,chanlocs,clusters{clusterIndex},timeVals,simulationPeriod,simulationSpeed,0);    % Comment to just get the outputs
+pgd = outputs.pgd;
+pgd(abs(pgd)==inf)=0;
+trapz(timeVals,pgd)
+% figure;
+% plot(timeVals,pgd);
+% xlim([0.2 1.25])
