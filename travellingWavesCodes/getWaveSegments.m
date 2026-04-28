@@ -1,3 +1,5 @@
+% taken from "https://github.com/gouthambhargava/TravellingWaveProject/blob/main/commonAnalysisCodes/analysisCodes/getWaveSegments.m"
+
 function [waveVector,uniqueDirs,waveBounds] = getWaveSegments(outputsTW,timeVals,wobbleLim,segOption,boundryLims, lengthLimit)
 % set boundryLims as a vector of times outside of which direction vectors will not be considered
 % Inputs: -outputsTW - output from getTWCircParams which contains the PGD, direction, speed, tempFreq and clusters for a single trial
