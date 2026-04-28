@@ -109,7 +109,7 @@ elseif segOption==2 % Imposes an additional criteria on wave segmentation, based
     if ~isempty(waveBounds)
         for j = 1:size(waveBounds,2)
             % waveVector(revisedBounds(1,j):revisedBounds(2,j)) = direction(revisedBounds(1,j):revisedBounds(2,j));
-            uniqueDirs = cat(1,uniqueDirs,circ_mean(direction(waveBounds(1,j):waveBounds(2,j))'));
+            uniqueDirs = cat(1,uniqueDirs,circ_mean(direction(waveBounds(1,j):waveBounds(2,j))));
         end
     end
 
@@ -132,7 +132,7 @@ elseif segOption==3 % ensures that wave segments from option 1 are further fragm
     if ~isempty(revisedBounds)
         for j = 1:size(revisedBounds,2)
             waveVector(revisedBounds(1,j):revisedBounds(2,j)) = direction(revisedBounds(1,j):revisedBounds(2,j));
-            uniqueDirs = cat(2,uniqueDirs,circ_mean(direction(revisedBounds(1,j):revisedBounds(2,j))'));
+            uniqueDirs = cat(2,uniqueDirs,circ_mean(direction(revisedBounds(1,j):revisedBounds(2,j))));
         end
         waveBounds = revisedBounds;
     end
