@@ -4,6 +4,10 @@ protocols = {"G1","G2","M2"};
 gammaBands = {"slow", "fast"};
 
 folderSource = 'E:\NeoLabData\projectDhyaan\segmentedData';
+d = dir(folderSource);
+names = {d([d.isdir]).name};
+subjectNames = names(~ismember(names, {'.','..'}));
+
 montageFolder = 'E:\OneDrive - Indian Institute of Science\NeoLabData\Programs\Montages\Layouts\actiCap64_UOL';
 labelFilePath = fullfile(montageFolder,'actiCap64_UOLLabels.mat');
 montageLabels = load(labelFilePath).montageLabels;

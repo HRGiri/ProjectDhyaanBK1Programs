@@ -1,6 +1,6 @@
 % taken from "https://github.com/gouthambhargava/TravellingWaveProject/blob/main/commonAnalysisCodes/analysisCodes/getWaveSegments.m"
 
-function [waveVector,uniqueDirs,waveBounds] = getWaveSegments(outputsTW,timeVals,wobbleLim,segOption,boundryLims, lengthLimit)
+function [waveVector,uniqueDirs,waveBounds,uniqueWavelengths,uniqueSpeeds,uniqueClusterSizes] = getWaveSegments(outputsTW,timeVals,wobbleLim,segOption,boundryLims, lengthLimit)
 % set boundryLims as a vector of times outside of which direction vectors will not be considered
 % Inputs: -outputsTW - output from getTWCircParams which contains the PGD, direction, speed, tempFreq and clusters for a single trial
 %         -timeVals - vector of time values for the given trial
@@ -41,8 +41,30 @@ else
     % pgd = mean(outputsTW.pgd,'omitnan');
     % direction = mean(outputsTW.direction,'omitnan');
     direction = outputsTW.direction;
+    waveLength = outputsTW.Wavelength;
+    speed = outputsTW.speed;
+    speed = [NaN;speed];
+    clusters = outputsTW.clusters;
+    
     pgd = outputsTW.pgd;
-    direction(isnan(pgd)) = nan;
+    pgdThreshold = 0.5;
+    
+    direction(isnan(pgd) | (pgd<pgdThreshold)) = nan;
+    
+    waveLength(isnan(pgd) | (pgd<pgdThreshold)) = nan;
+    waveLength(abs(waveLength)==inf) = nan;  
+    waveLength = waveLength*360/rad2deg(1); % Convert to mm/deg
+
+    speed(isnan(pgd) | (pgd<pgdThreshold)) = nan;       
+    speed(abs(speed)==inf) = nan;
+    speed = speed/1000;   % Convert to m/s
+    
+    clusters(isnan(pgd) & (pgd<pgdThreshold)) = [];
+    clusterSizes = double(size(clusters));
+    for i = 1:length(pgd)
+        clusterSizes(i) = length(clusters{i});
+    end
+
 
     % if size(direction,1)>1
     %     direction = direction(1,:);
@@ -53,8 +75,14 @@ end
 if segOption==1 % get wave segments where segments are purely seperated by significant PGD. Segmentation is very lenient
     [waveVector,waveBounds] = getsimpleWaveSegments(direction,lengthLimit);
     uniqueDirs = [];
+    uniqueWavelengths = [];
+    uniqueSpeeds = [];
+    uniqueClusterSizes = [];
     for j = 1:size(waveBounds,2)
         uniqueDirs = cat(2,uniqueDirs,circ_mean(direction(waveBounds(1,j):waveBounds(2,j))));
+        uniqueWavelengths = cat(2,uniqueWavelengths,nanmean(waveLength(waveBounds(1,j):waveBounds(2,j))));
+        uniqueSpeeds = cat(2,uniqueSpeeds,nanmean(speed(waveBounds(1,j):waveBounds(2,j))));
+        uniqueClusterSizes = cat(2,uniqueClusterSizes,mean(clusterSizes(waveBounds(1,j):waveBounds(2,j))));
     end
 
 elseif segOption==2 % Imposes an additional criteria on wave segmentation, based on wobbleLim.

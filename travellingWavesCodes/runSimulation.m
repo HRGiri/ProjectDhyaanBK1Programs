@@ -5,18 +5,24 @@ electrodeLocs = projectTo2DPlane(chanlocs);
 electrodeLocs = electrodeLocs(electrodesToAnalyse, :);
 % Precompute grid (do this once)
 gridRes = 100;
-xlin = linspace(min(electrodeLocs(:,1)), max(electrodeLocs(:,1)), gridRes);
-ylin = linspace(min(electrodeLocs(:,2)), max(electrodeLocs(:,2)), gridRes);
+xlin = linspace(min(electrodeLocs(:,1))-0.1, max(electrodeLocs(:,1))+0.1, gridRes);
+ylin = linspace(min(electrodeLocs(:,2))-0.1, max(electrodeLocs(:,2))+0.1, gridRes);
 [Xq, Yq] = meshgrid(xlin, ylin);
-% Compute convex hull of electrode positions
-K = convhull(electrodeLocs(:,1), electrodeLocs(:,2));
 
-% Create mask for valid region
-inMask = inpolygon(Xq, Yq, electrodeLocs(K,1), electrodeLocs(K,2));
+% Construct an artificial circle
+center = mean(electrodeLocs);
+radius = max(vecnorm(electrodeLocs - center, 2, 2)) + 0.05;
+theta = linspace(0, 2*pi, 100);
+
+xc = center(1) + radius * cos(theta);
+yc = center(2) + radius * sin(theta);
+
+% Write into a video
+% videoWriter = VideoWriter('travellingWave.mp4', 'MPEG-4');
+% videoWriter.FrameRate = 1/simulationSpeed; % adjust speed
+% open(videoWriter);
 
 figure;
-% start_t = find(timeVals>=0.716,1);
-% end_t = find(timeVals>=0.724,1);
 start_t = find(timeVals>=simulationPeriod(1),1);
 end_t = find(timeVals>=simulationPeriod(2),1);
 for t = start_t:end_t
@@ -24,27 +30,39 @@ for t = start_t:end_t
     % --- Extract phase ---
     phi_t = outputs.phi(:, t);
 
+    % Extrapolation of phase to the boundary
+    phi_boundary = zeros(size(xc));
+
+    for k = 1:length(xc)
+        d = vecnorm(electrodeLocs - [xc(k), yc(k)], 2, 2);
+        [~, idx] = min(d);
+        phi_boundary(k) = phi_t(idx);
+    end
+    
     % --- Complex interpolation (correct for phase) ---
-    complexPhase = exp(1i * phi_t);
+    complexPhase = exp(1i * phi_t);    
+    complex_boundary = exp(1i * phi_boundary);
 
-    Zq_real = griddata(electrodeLocs(:,1), electrodeLocs(:,2), real(complexPhase), Xq, Yq, 'cubic');
-    Zq_imag = griddata(electrodeLocs(:,1), electrodeLocs(:,2), imag(complexPhase), Xq, Yq, 'cubic');
+    X_aug = [electrodeLocs(:,1); xc(:)];
+    Y_aug = [electrodeLocs(:,2); yc(:)];
+    
+    Z_real_aug = [real(complexPhase); real(complex_boundary(:))];
+    Z_imag_aug = [imag(complexPhase); imag(complex_boundary(:))];
+
+    Zq_real = griddata(X_aug, Y_aug, Z_real_aug, Xq, Yq, 'natural');
+    Zq_imag = griddata(X_aug, Y_aug, Z_imag_aug, Xq, Yq, 'natural');
+
     Zq = angle(Zq_real + 1i * Zq_imag);
-    % center = mean(X);
-    % radius = max(vecnorm(X - center, 2, 2));
-    % 
-    % circleMask = (Xq - center(1)).^2 + (Yq - center(2)).^2 <= radius^2;
-    % Zq(~circleMask) = NaN;
-    Zq(~inMask) = NaN;  % mask outside region
-
+    
     % --- Plot ---
-    clf; % clear figure each frame
-
+    % clf; % clear figure each frame    
+    subplot(2,3,t-start_t+1)
     h = imagesc(xlin, ylin, Zq);
     set(gca, 'YDir', 'normal');
     axis equal;
     ylim([-1.1 1.1]);
     xlim([-1.1 1.1]);
+    axis off;
     % Make NaNs transparent
     set(h, 'AlphaData', ~isnan(Zq));
     set(gca, 'Color', 'w'); % background white instead of red
@@ -53,9 +71,12 @@ for t = start_t:end_t
     colormap(hsv);
     clim([-pi pi]);
     colorbar;
+    
+    % Plot circle  
+    plot(xc, yc, 'k', 'LineWidth', 1);
 
     % Electrodes
-    scatter(electrodeLocs(:,1), electrodeLocs(:,2), 20, 'k', 'filled');
+    scatter(electrodeLocs(:,1), electrodeLocs(:,2), 30, 'k', 'filled');
 
     % --- Cluster + direction ---
     clusterElectrodes = outputs.clusters{t};
@@ -76,7 +97,7 @@ for t = start_t:end_t
         u = cos(theta);
         v = sin(theta);
 
-        arrowScale = 0.05 * mean(range(electrodeLocs));
+        arrowScale = 0.1 * mean(range(electrodeLocs));
         
         if clusterElectrodesIndices ~= 0
             quiver( ...
@@ -90,8 +111,9 @@ for t = start_t:end_t
         end
     end
 
-    title(sprintf('t = %.3f ms', 1000*timeVals(t)));
-    xlabel('X'); ylabel('Y');
+    % title(sprintf('Phase Map\nt = %.0f ms', 1000*timeVals(t)));
+    title(sprintf('t = %.0f ms', 1000*timeVals(t)));
+    % xlabel('X'); ylabel('Y');
 
     drawnow;
     if pauseAfterEveryFrame
@@ -99,6 +121,11 @@ for t = start_t:end_t
     else
         pause(simulationSpeed);  
     end
+    
+    % --- Capture frame ---
+    % frame = getframe(gcf);
+    % writeVideo(videoWriter, frame);
 end
+% close(videoWriter);
 end
 

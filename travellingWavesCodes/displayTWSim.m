@@ -3,6 +3,7 @@ clear;
 subjectName = '013AR';
 date = '280122';
 protocol = 'M2';
+gammaBand = "fast";
 folderSource = 'E:\NeoLabData\projectDhyaan\segmentedData';
 
 segmentedDataFolder = fullfile(folderSource,subjectName,'EEG',date,protocol,'segmentedData','LFP');
@@ -61,26 +62,22 @@ X = projectTo2DPlane(chanlocs);
 % X = [chanlocs.Y; chanlocs.X; chanlocs.Z]';
 % [clusters, clusterPeakFreqs] = getClusters(data,timeVals,X,[0 80]);
 clusters{1} = 1:64;
-% numClusters = length(clusters);
-% outputs = cell(1,numClusters);
-% for clusterIndex=1:numClusters
-%     BWFactor = 0.85;
-    % freqRange = [BWFactor 1/BWFactor]*clusterPeakFreqs{clusterIndex};
-    freqRange = [40 60];
-    % outputs{clusterIndex} = getTWCircParams(squeeze(data(1,:,:)),timeVals,...
-    %     clusters{clusterIndex},freqRange,1,[]);
-% end
+if strcmp(gammaBand,'slow')
+    freqRange = [20 40];    %#ok<UNRCH>
+else
+    freqRange = [40 60]; %#ok<UNRCH>
+end
 outputs = getTWCircParams(squeeze(data(1,:,:)),timeVals,...
         clusters{1},freqRange,1,[],chanlocs);
 
 %% Plot Simulation
 % Coarse simulation
-simulationPeriod = [0.5 0.75];
-simulationSpeed = 0.01;
+% simulationPeriod = [0.25 1.25];
+% simulationSpeed = 0.01;
 
 % Fine Simulation
-% simulationPeriod = [0.92 0.931];
-% simulationSpeed = 1;
+simulationPeriod = [0.345 0.35];
+simulationSpeed = 1;
 
 % Single Frame snapshot
 % timePoint = 0.718;
@@ -90,6 +87,7 @@ clusterIndex = 1;
 runSimulation(outputs,chanlocs,clusters{clusterIndex},timeVals,simulationPeriod,simulationSpeed,0);    % Comment to just get the outputs
 pgd = outputs.pgd;
 pgd(abs(pgd)==inf)=0;
+pgd(isnan(pgd))=0;
 trapz(timeVals,pgd)
 % figure;
 % plot(timeVals,pgd);
